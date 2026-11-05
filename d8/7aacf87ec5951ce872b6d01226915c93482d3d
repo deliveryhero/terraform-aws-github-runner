@@ -1,0 +1,27 @@
+modules/runner-binaries-syncer/runner-binaries-syncer.tf
+  s_4340a95068ad8d::t_6f194443199b65 19
+modules/runners/pool/main.tf
+  s_4340a95068ad8d::t_367383ef1ae617 11
+modules/runners/scale-down.tf
+  s_4340a95068ad8d::t_91b0fa93f2156d 17
+modules/runners/scale-up.tf
+  s_4340a95068ad8d::t_57cb6302aeb658 10
+modules/webhook/webhook.tf
+  s_4340a95068ad8d::t_3e36fceff47055 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d87aacf87ec5951ce872b6d01226915c93482d3d",
+  "prompts": {},
+  "sessions": {
+    "s_4340a95068ad8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "702a43d3-afaa-4cb5-b63f-338959c100b0",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "seeeun-cho <seeeun.cho@deliveryhero.com>"
+    }
+  }
+}
