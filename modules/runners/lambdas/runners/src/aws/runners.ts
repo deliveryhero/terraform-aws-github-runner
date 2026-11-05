@@ -123,11 +123,67 @@ function generateFleeOverrides(
   return result;
 }
 
+interface LaunchTemplateTags {
+  instance: EC2.TagList;
+  volume: EC2.TagList;
+}
+
+// The launch template carries the tags defined in Terraform (e.g. runner_ec2_tags). CreateFleet requests that
+// specify TagSpecifications are evaluated on their own, so organization policies checking aws:RequestTag
+// (mandatory-tag SCPs) do not see the template tags. Read them and send them with the request.
+// Requires ec2:DescribeLaunchTemplateVersions; on any failure the request is sent exactly as before.
+async function getLaunchTemplateTags(ec2: EC2, launchTemplateName: string): Promise<LaunchTemplateTags> {
+  try {
+    const result = await ec2
+      .describeLaunchTemplateVersions({ LaunchTemplateName: launchTemplateName, Versions: ['$Default'] })
+      .promise();
+    const specs = result.LaunchTemplateVersions?.[0]?.LaunchTemplateData?.TagSpecifications || [];
+    const tagsFor = (type: string): EC2.TagList => specs.find((spec) => spec.ResourceType === type)?.Tags || [];
+    return { instance: tagsFor('instance'), volume: tagsFor('volume') };
+  } catch (e) {
+    logger.warn('Unable to read tags from the launch template, only module-owned tags are sent.', e);
+    return { instance: [], volume: [] };
+  }
+}
+
+// Template tags first, module-owned tags last so they always win.
+function mergeTags(templateTags: EC2.TagList, ownTags: EC2.TagList): EC2.TagList {
+  const merged = new Map<string, string>();
+  for (const { Key, Value } of templateTags) {
+    if (Key !== undefined) merged.set(Key, Value ?? '');
+  }
+  for (const { Key, Value } of ownTags) {
+    if (Key !== undefined) merged.set(Key, Value ?? '');
+  }
+  return Array.from(merged, ([Key, Value]) => ({ Key, Value }));
+}
+
 export async function createRunner(runnerParameters: RunnerInputParameters): Promise<void> {
   logger.debug('Runner configuration: ' + JSON.stringify(runnerParameters), LogFields.print());
 
   const ec2 = new EC2();
   const numberOfRunners = runnerParameters.numberOfRunners ? runnerParameters.numberOfRunners : 1;
+
+  const templateTags = await getLaunchTemplateTags(ec2, runnerParameters.launchTemplateName);
+  const tagSpecifications: EC2.TagSpecificationList = [
+    {
+      ResourceType: 'instance',
+      Tags: mergeTags(templateTags.instance, [
+        { Key: 'Application', Value: 'github-action-runner' },
+        { Key: 'Type', Value: runnerParameters.runnerType },
+        { Key: 'Owner', Value: runnerParameters.runnerOwner },
+      ]),
+    },
+  ];
+  // The v1.2.0 launch template only puts runner_ec2_tags on instances; volumes created by the fleet need
+  // the same mandatory tags, so send the template's volume tags plus the instance template tags (minus Name).
+  const volumeTags = mergeTags(
+    templateTags.instance.filter((t) => t.Key !== 'Name'),
+    templateTags.volume,
+  );
+  if (templateTags.instance.length > 0 || templateTags.volume.length > 0) {
+    tagSpecifications.push({ ResourceType: 'volume', Tags: volumeTags });
+  }
 
   let fleet: AWS.EC2.CreateFleetResult;
   try {
@@ -154,16 +210,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           TotalTargetCapacity: numberOfRunners,
           DefaultTargetCapacityType: runnerParameters.ec2instanceCriteria.targetCapacityType,
         },
-        TagSpecifications: [
-          {
-            ResourceType: 'instance',
-            Tags: [
-              { Key: 'Application', Value: 'github-action-runner' },
-              { Key: 'Type', Value: runnerParameters.runnerType },
-              { Key: 'Owner', Value: runnerParameters.runnerOwner },
-            ],
-          },
-        ],
+        TagSpecifications: tagSpecifications,
         Type: 'instant',
       })
       .promise();

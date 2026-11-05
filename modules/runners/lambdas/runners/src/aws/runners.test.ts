@@ -3,7 +3,12 @@ import { EC2 } from 'aws-sdk';
 import ScaleError from './../scale-runners/ScaleError';
 import { RunnerInfo, RunnerInputParameters, createRunner, listEC2Runners, terminateRunner } from './runners';
 
-const mockEC2 = { describeInstances: jest.fn(), createFleet: jest.fn(), terminateInstances: jest.fn() };
+const mockEC2 = {
+  describeInstances: jest.fn(),
+  createFleet: jest.fn(),
+  terminateInstances: jest.fn(),
+  describeLaunchTemplateVersions: jest.fn(),
+};
 const mockSSM = { putParameter: jest.fn() };
 jest.mock('aws-sdk', () => ({
   EC2: jest.fn().mockImplementation(() => mockEC2),
@@ -170,6 +175,7 @@ describe('terminate runner', () => {
 describe('create runner', () => {
   const mockCreateFleet = { promise: jest.fn() };
   const mockPutParameter = { promise: jest.fn() };
+  const mockDescribeLaunchTemplateVersions = { promise: jest.fn() };
   const defaultRunnerConfig: RunnerConfig = {
     allocationStrategy: 'capacity-optimized',
     capacityType: 'spot',
@@ -186,11 +192,83 @@ describe('create runner', () => {
     jest.clearAllMocks();
 
     mockEC2.createFleet.mockImplementation(() => mockCreateFleet);
+    mockEC2.describeLaunchTemplateVersions.mockImplementation(() => mockDescribeLaunchTemplateVersions);
+    mockDescribeLaunchTemplateVersions.promise.mockResolvedValue({ LaunchTemplateVersions: [] });
 
     mockCreateFleet.promise.mockReturnValue({
       Instances: [{ InstanceIds: ['i-1234'] }],
     });
     mockSSM.putParameter.mockImplementation(() => mockPutParameter);
+  });
+
+  describe('launch template tags', () => {
+    const templateVersions = {
+      LaunchTemplateVersions: [
+        {
+          LaunchTemplateData: {
+            TagSpecifications: [
+              {
+                ResourceType: 'instance',
+                Tags: [
+                  { Key: 'dh_app', Value: 'app' },
+                  { Key: 'dh_squad', Value: 'squad' },
+                  { Key: 'dh_tribe', Value: 'tribe' },
+                  { Key: 'Name', Value: 'runner-name' },
+                  { Key: 'Type', Value: 'from-template' },
+                ],
+              },
+              { ResourceType: 'volume', Tags: [{ Key: 'Name', Value: 'volume-name' }] },
+            ],
+          },
+        },
+      ],
+    };
+
+    it('reads the default launch template version', async () => {
+      await createRunner(createRunnerConfig(defaultRunnerConfig));
+      expect(mockEC2.describeLaunchTemplateVersions).toBeCalledWith({
+        LaunchTemplateName: LAUNCH_TEMPLATE,
+        Versions: ['$Default'],
+      });
+    });
+
+    it('merges template tags into the instance tags and lets module-owned tags win', async () => {
+      mockDescribeLaunchTemplateVersions.promise.mockResolvedValue(templateVersions);
+      await createRunner(createRunnerConfig(defaultRunnerConfig));
+      const request = mockEC2.createFleet.mock.calls[0][0];
+      const instanceSpec = request.TagSpecifications.find((s: EC2.TagSpecification) => s.ResourceType === 'instance');
+      const tags = Object.fromEntries(instanceSpec.Tags.map((t: EC2.Tag) => [t.Key, t.Value]));
+      expect(tags).toEqual({
+        dh_app: 'app',
+        dh_squad: 'squad',
+        dh_tribe: 'tribe',
+        Name: 'runner-name',
+        Type: 'Org',
+        Application: 'github-action-runner',
+        Owner: REPO_NAME,
+      });
+    });
+
+    it('sends the template tags (without Name) on volumes as well', async () => {
+      mockDescribeLaunchTemplateVersions.promise.mockResolvedValue(templateVersions);
+      await createRunner(createRunnerConfig(defaultRunnerConfig));
+      const request = mockEC2.createFleet.mock.calls[0][0];
+      const volumeSpec = request.TagSpecifications.find((s: EC2.TagSpecification) => s.ResourceType === 'volume');
+      const tags = Object.fromEntries(volumeSpec.Tags.map((t: EC2.Tag) => [t.Key, t.Value]));
+      expect(tags).toEqual({
+        dh_app: 'app',
+        dh_squad: 'squad',
+        dh_tribe: 'tribe',
+        Type: 'from-template',
+        Name: 'volume-name',
+      });
+    });
+
+    it('sends the original request when the launch template cannot be read', async () => {
+      mockDescribeLaunchTemplateVersions.promise.mockRejectedValue(new Error('AccessDenied'));
+      await createRunner(createRunnerConfig(defaultRunnerConfig));
+      expect(mockEC2.createFleet).toBeCalledWith(expectedCreateFleetRequest(defaultExpectedFleetRequestValues));
+    });
   });
 
   it('calls create fleet of 1 instance with the correct config for repo', async () => {
