@@ -1,0 +1,31 @@
+modules/download-lambda/versions.tf
+  s_4340a95068ad8d::t_cd397a807a4672 7
+modules/runner-binaries-syncer/versions.tf
+  s_4340a95068ad8d::t_9bc5b9ea68ee9f 7
+modules/runners/versions.tf
+  s_4340a95068ad8d::t_82dbe290acba18 7
+modules/setup-iam-permissions/versions.tf
+  s_4340a95068ad8d::t_fcdf6422fb1066 7
+modules/ssm/versions.tf
+  s_4340a95068ad8d::t_8036f03d0b32ed 7
+modules/webhook/versions.tf
+  s_4340a95068ad8d::t_a64522c36adb7c 7
+versions.tf
+  s_4340a95068ad8d::t_69a7d8c600e4a6 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4a19d544fdc45041a3e495b609c4adbe414513e",
+  "prompts": {},
+  "sessions": {
+    "s_4340a95068ad8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "702a43d3-afaa-4cb5-b63f-338959c100b0",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "seeeun-cho <seeeun.cho@deliveryhero.com>"
+    }
+  }
+}
