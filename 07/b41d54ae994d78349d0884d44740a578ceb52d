@@ -1,0 +1,21 @@
+modules/runners/lambdas/runners/src/aws/runners.test.ts
+  s_4340a95068ad8d::t_648af664f6f6cb 6-11,178,195-196,204-273
+modules/runners/lambdas/runners/src/aws/runners.ts
+  s_4340a95068ad8d::t_8e00b109ffc050 126-160,167-187,213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "07b41d54ae994d78349d0884d44740a578ceb52d",
+  "prompts": {},
+  "sessions": {
+    "s_4340a95068ad8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "702a43d3-afaa-4cb5-b63f-338959c100b0",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "seeeun-cho <seeeun.cho@deliveryhero.com>"
+    }
+  }
+}
