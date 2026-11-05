@@ -1,0 +1,23 @@
+lambdas/libs/compute-providers/aws/ec2/src/launch-template.ts
+  s_4340a95068ad8d::t_40eac1843aca10 1,27-50
+lambdas/libs/compute-providers/aws/ec2/src/runners.test.ts
+  s_4340a95068ad8d::t_755125466c6847 585-679,1253,1262,1306,1315,1344,1576-1600
+lambdas/libs/compute-providers/aws/ec2/src/runners.ts
+  s_4340a95068ad8d::t_f7bfddb72791f3 25-26,590-629,636-638,683,687,691,707-709,734,738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "74d4f8ad6c5a2f3bf0eecc7735cad09db8467a23",
+  "prompts": {},
+  "sessions": {
+    "s_4340a95068ad8d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "702a43d3-afaa-4cb5-b63f-338959c100b0",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "seeeun-cho <seeeun.cho@deliveryhero.com>"
+    }
+  }
+}
